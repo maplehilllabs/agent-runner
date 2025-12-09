@@ -1,0 +1,27 @@
+# General
+.DS_Store
+.env
+.venv
+venv/
+__pycache__/
+*.pyc
+
+# Project specific
+config.yaml
+logs/
+*.log
+
+# Python build/test
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+configs/
+docs/
+.CLAUDE.md 
+.GEMINI.md
+.AGENT.md

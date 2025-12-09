@@ -1,0 +1,151 @@
+# Claude Agent Framework Configuration
+# =====================================
+# Copy this file to config.yaml and customize
+
+# Agent Configuration
+agent:
+  name: my-agent
+  model: sonnet  # sonnet, opus, haiku
+  max_turns: 50
+  permission_mode: acceptEdits  # default, acceptEdits, bypassPermissions, plan
+
+  # System prompt configuration
+  system_prompt_type: append  # preset, custom, append
+  system_prompt_preset: claude_code
+  system_prompt_content: |
+    You are a specialized automation agent.
+    Focus on accuracy and efficiency.
+    Always explain your actions clearly.
+
+  # Budget and limits
+  max_budget_usd: 10.0
+  # max_thinking_tokens: 5000
+
+  # Working directory (defaults to current directory)
+  # cwd: /path/to/project
+
+  # Settings sources to load
+  setting_sources:
+    - user
+    - project
+
+# Sub-Agents
+sub_agents:
+  - name: code-reviewer
+    description: Expert code reviewer for security, quality, and best practices
+    prompt: |
+      You are an expert code reviewer with focus on:
+      - Security vulnerabilities
+      - Code quality and maintainability
+      - Performance optimization
+      - Best practices
+
+      Provide specific, actionable feedback.
+    tools:
+      - Read
+      - Grep
+      - Glob
+    model: sonnet
+
+  - name: data-analyst
+    description: Data analysis specialist for database queries and reporting
+    prompt: |
+      You are a data analysis expert specializing in:
+      - SQL queries and optimization
+      - Data quality assessment
+      - Statistical analysis
+      - Report generation
+
+      Be precise with numbers and validate findings.
+    tools:
+      - Bash
+      - Read
+      - Write
+      - Grep
+    model: sonnet
+
+  - name: log-analyzer
+    description: Log analysis expert for error detection and pattern identification
+    prompt: |
+      You are a log analysis specialist focused on:
+      - Error pattern identification
+      - Performance bottleneck detection
+      - Security incident investigation
+      - Root cause analysis
+
+      Prioritize findings by impact.
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+# MCP Servers
+mcp_servers:
+  # Example: Filesystem server
+  # - name: filesystem
+  #   type: stdio
+  #   command: npx
+  #   args:
+  #     - "@modelcontextprotocol/server-filesystem"
+  #   env:
+  #     ALLOWED_PATHS: /data
+
+  # Example: HTTP server
+  # - name: api-server
+  #   type: http
+  #   url: https://api.example.com/mcp
+  #   headers:
+  #     Authorization: Bearer ${API_TOKEN}
+
+# AWS Bedrock Configuration
+bedrock:
+  enabled: false
+  region: us-east-1
+  # profile: default
+  # model_id: global.anthropic.claude-sonnet-4-5-20250929-v1:0
+  # small_model_id: us.anthropic.claude-haiku-4-5-20251001-v1:0
+
+# Sandbox Configuration
+sandbox:
+  enabled: false
+  auto_allow_bash: false
+  excluded_commands: []
+
+# Slack Notifications
+slack:
+  enabled: false
+  # webhook_url: https://hooks.slack.com/services/...
+  username: Claude Agent
+  icon_emoji: ":robot_face:"
+  notify_on_success: true
+  notify_on_error: true
+  include_cost: true
+  include_duration: true
+
+# Logging Configuration
+logging:
+  enabled: true
+  log_dir: ./logs
+  log_level: INFO
+  log_agent_trace: true
+  log_tool_calls: true
+  log_token_usage: true
+  separate_trace_file: true
+  rotate_logs: true
+  max_log_size_mb: 10
+  backup_count: 5
+
+# Task Configuration
+# task_prompt: |
+#   Your default task prompt here...
+# task_prompt_file: ./prompts/default_task.md
+
+# Service Mode
+service_mode: false
+service_interval_seconds: 3600
+# cron_schedule: "0 * * * *"  # Every hour
+
+# Session Management
+# session_id: null
+# continue_conversation: false
