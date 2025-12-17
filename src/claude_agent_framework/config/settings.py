@@ -65,6 +65,40 @@ class MCPServerConfig(BaseModel):
 
     model_config = {"extra": "forbid"}
 
+    @field_validator("command")
+    @classmethod
+    def validate_command(cls, v: str | None) -> str | None:
+        """Validate MCP server command for security.
+
+        Security: Warns about potentially dangerous commands and shell features.
+        """
+        if v is None:
+            return None
+
+        # List of potentially dangerous patterns
+        dangerous_patterns = [
+            ("rm ", "file deletion"),
+            ("sudo ", "privilege escalation"),
+            ("curl | sh", "remote code execution"),
+            ("wget | sh", "remote code execution"),
+            ("|", "shell piping"),
+            ("&&", "command chaining"),
+            (";", "command separation"),
+            ("`", "command substitution"),
+            ("$(", "command substitution"),
+        ]
+
+        for pattern, risk in dangerous_patterns:
+            if pattern in v:
+                warnings.warn(
+                    f"MCP server command contains potentially dangerous pattern '{pattern}' "
+                    f"({risk}): {v}. Ensure this is from a trusted source.",
+                    stacklevel=2
+                )
+                break
+
+        return v
+
 
 class SlackConfig(BaseModel):
     """Slack notification configuration."""
@@ -186,10 +220,26 @@ class AgentConfig(BaseModel):
     @field_validator("cwd", mode="before")
     @classmethod
     def validate_cwd(cls, v: Any) -> Path | None:
+        """Validate and resolve the working directory path.
+
+        Security: Ensures path is resolved to absolute path and checks for
+        suspicious patterns that might indicate path traversal attempts.
+        """
         if v is None:
             return None
         if isinstance(v, str):
-            return Path(v).expanduser().resolve()
+            path = Path(v).expanduser().resolve()
+
+            # Security check: warn if path contains suspicious patterns
+            path_str = str(path)
+            if ".." in path_str or path_str.startswith("/etc") or path_str.startswith("/root"):
+                warnings.warn(
+                    f"Working directory path contains potentially unsafe location: {path_str}. "
+                    "Ensure this is intentional.",
+                    stacklevel=2
+                )
+
+            return path
         return v
 
 
