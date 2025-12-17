@@ -179,33 +179,17 @@ class AgentEngine:
             }
 
     def _check_keychain_credentials(self) -> dict[str, Any] | None:
-        """Check if Claude Code has credentials stored in macOS Keychain."""
-        import subprocess
-        import sys
+        """Check if Claude Code has credentials stored in macOS Keychain.
 
-        if sys.platform != "darwin":
-            return None
+        SECURITY NOTE: This method has been disabled to prevent keychain dumping.
+        The Claude Agent SDK will automatically retrieve credentials from the
+        keychain when needed using secure APIs.
 
-        try:
-            # Check for Claude Code credentials in Keychain
-            result = subprocess.run(
-                ["security", "dump-keychain"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            output = result.stdout.lower()
-
-            if "claude code-credentials" in output or "claude safe storage" in output:
-                return {
-                    "method": "Claude Code Keychain",
-                    "source": "macOS Keychain",
-                    "model": self.settings.agent.model.value,
-                    "note": "Using credentials from 'claude login'. SDK will retrieve automatically.",
-                }
-        except Exception:
-            pass
-
+        TODO: If keychain detection is needed, implement using official macOS
+        Security framework APIs instead of dumping the entire keychain.
+        """
+        # Disabled for security reasons - dumping keychain is a security risk
+        # The SDK will handle keychain access securely if credentials exist
         return None
 
     def _build_system_prompt(self) -> str | SystemPromptPreset | None:

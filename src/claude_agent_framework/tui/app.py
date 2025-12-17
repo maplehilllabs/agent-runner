@@ -11,6 +11,7 @@ Provides an interactive terminal interface for:
 
 from __future__ import annotations
 
+import getpass
 import os
 from pathlib import Path
 from typing import Any
@@ -254,11 +255,14 @@ class ConfigTUI:
         self.console.print(f"Current API key: {masked_key}")
 
         if Confirm.ask("Update API key?", default=False):
-            self.console.print("[dim]Paste your API key (input will be visible):[/dim]")
-            new_key = Prompt.ask("Anthropic API key")
+            self.console.print("[yellow]⚠ Security Warning:[/yellow] API keys will be stored in plaintext in .env files.")
+            self.console.print("[dim]Paste your API key (input will be hidden):[/dim]")
+            new_key = getpass.getpass("Anthropic API key: ")
             if new_key:
                 self.settings.anthropic_api_key = new_key
                 self.console.print("[green]API key updated![/green]")
+            else:
+                self.console.print("[yellow]No API key entered.[/yellow]")
 
         # Option to use Bedrock instead
         if Confirm.ask("Configure AWS Bedrock instead of API key?", default=False):
@@ -500,12 +504,14 @@ class ConfigTUI:
             self.console.print(f"Current webhook: [dim]{masked}[/dim]")
 
         if not existing_webhook or Confirm.ask("Update webhook URL?", default=not existing_webhook):
-            new_webhook = Prompt.ask(
-                "Webhook URL (paste full URL)",
-                default=""
-            )
+            self.console.print("[yellow]⚠ Security Warning:[/yellow] Webhook URLs are sensitive credentials.")
+            self.console.print("[dim]Paste your webhook URL (input will be hidden):[/dim]")
+            new_webhook = getpass.getpass("Slack Webhook URL: ")
             if new_webhook:
                 self.settings.slack.webhook_url = new_webhook
+                self.console.print("[green]Webhook URL updated![/green]")
+            else:
+                self.console.print("[yellow]No webhook URL entered.[/yellow]")
 
         self.settings.slack.username = Prompt.ask(
             "Bot username",
