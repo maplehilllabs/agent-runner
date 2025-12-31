@@ -115,6 +115,27 @@ class SlackConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class WebhookConfig(BaseModel):
+    """Webhook server configuration."""
+    enabled: bool = Field(default=False, description="Enable webhook server")
+    host: str = Field(default="0.0.0.0", description="Host to bind to")
+    port: int = Field(default=8000, description="Port to listen on")
+    linear_webhook_secret: str | None = Field(
+        default=None,
+        description="Linear webhook signing secret for validation"
+    )
+    max_timestamp_age_seconds: int = Field(
+        default=60,
+        description="Maximum age of webhook timestamp in seconds"
+    )
+    routes_file: Path | None = Field(
+        default=None,
+        description="YAML file containing webhook route rules"
+    )
+
+    model_config = {"extra": "forbid"}
+
+
 class LoggingConfig(BaseModel):
     """Logging configuration."""
     enabled: bool = Field(default=True, description="Enable logging")
@@ -287,6 +308,9 @@ class Settings(BaseSettings):
 
     # Slack Configuration
     slack: SlackConfig = Field(default_factory=SlackConfig)
+
+    # Webhook Configuration
+    webhook: WebhookConfig = Field(default_factory=WebhookConfig)
 
     # Logging Configuration
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
