@@ -65,18 +65,23 @@ class WebhookHandler:
         except Exception as e:
             logger.error(f"Failed to load webhook routes: {e}")
 
-    def find_matching_rule(self, event_key: str) -> WebhookRouteRule | None:
+    def find_matching_rule(
+        self,
+        event_key: str,
+        payload: LinearWebhookPayload | None = None
+    ) -> WebhookRouteRule | None:
         """
-        Find the first matching route rule for the given event key.
+        Find the first matching route rule for the given event key and payload.
 
         Args:
             event_key: Event key in format "Type.action" (e.g., "Issue.create")
+            payload: Webhook payload for condition checking
 
         Returns:
             Matching route rule or None
         """
         for rule in self.route_rules:
-            if rule.enabled and rule.matches(event_key):
+            if rule.enabled and rule.matches(event_key, payload):
                 return rule
         return None
 
@@ -101,8 +106,8 @@ class WebhookHandler:
             f"(delivery_id={headers.get('delivery_id')})"
         )
 
-        # Find matching route rule
-        rule = self.find_matching_rule(event_key)
+        # Find matching route rule (with condition checking)
+        rule = self.find_matching_rule(event_key, payload)
 
         if not rule:
             logger.info(f"No matching route rule for event: {event_key}")

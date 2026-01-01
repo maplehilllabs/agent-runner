@@ -96,20 +96,100 @@ class LinearWebhookPayload(BaseModel):
         return None
 
 
+class RouteCondition(BaseModel):
+    """
+    Condition to filter webhook events based on field values.
+
+    Example:
+        {
+            "field": "assignee.name",
+            "operator": "equals",
+            "value": "Claude"
+        }
+    """
+    field: str = Field(..., description="Dot-notation path to field (e.g., 'assignee.name')")
+    operator: str = Field(
+        default="equals",
+        description="Comparison operator: equals, not_equals, contains, in, changed"
+    )
+    value: Any = Field(None, description="Value to compare against")
+
+    def evaluate(self, payload: LinearWebhookPayload) -> bool:
+        """
+        Evaluate this condition against a webhook payload.
+
+        Args:
+            payload: The webhook payload to check
+
+        Returns:
+            True if condition matches, False otherwise
+        """
+        # Get the field value using dot notation
+        field_value = self._get_field_value(payload, self.field)
+
+        # Handle different operators
+        if self.operator == "equals":
+            return field_value == self.value
+        elif self.operator == "not_equals":
+            return field_value != self.value
+        elif self.operator == "contains":
+            if isinstance(field_value, str):
+                return str(self.value) in field_value
+            elif isinstance(field_value, (list, tuple)):
+                return self.value in field_value
+            return False
+        elif self.operator == "in":
+            if isinstance(self.value, (list, tuple)):
+                return field_value in self.value
+            return False
+        elif self.operator == "changed":
+            # Check if the field changed (using updatedFrom)
+            if not payload.updatedFrom:
+                return False
+            old_value = self._get_field_value_from_dict(payload.updatedFrom, self.field)
+            return old_value != field_value
+        else:
+            return False
+
+    def _get_field_value(self, payload: LinearWebhookPayload, field_path: str) -> Any:
+        """Get a field value from payload using dot notation."""
+        return self._get_field_value_from_dict(payload.data, field_path)
+
+    def _get_field_value_from_dict(self, data: dict[str, Any], field_path: str) -> Any:
+        """Get a nested field value using dot notation."""
+        parts = field_path.split(".")
+        value = data
+
+        for part in parts:
+            if isinstance(value, dict):
+                value = value.get(part)
+            else:
+                return None
+
+        return value
+
+
 class WebhookRouteRule(BaseModel):
     """
     Routing rule to map webhook events to agent prompts.
 
     Example:
         {
-            "event_pattern": "Issue.create",
-            "prompt_template": "Analyze this new issue: {title}\\n\\n{description}",
+            "event_pattern": "Issue.update",
+            "conditions": [
+                {"field": "assignee.name", "operator": "equals", "value": "Claude"}
+            ],
+            "prompt_template": "Work on this issue: {title}",
             "enabled": true
         }
     """
     event_pattern: str = Field(
         ...,
         description="Event pattern to match (e.g., 'Issue.create', 'Issue.*', '*')"
+    )
+    conditions: list[RouteCondition] = Field(
+        default_factory=list,
+        description="Additional conditions to filter events (AND logic)"
     )
     prompt_template: str = Field(
         ...,
@@ -118,8 +198,29 @@ class WebhookRouteRule(BaseModel):
     enabled: bool = Field(default=True, description="Whether this rule is active")
     description: str | None = Field(default=None, description="Human-readable description")
 
-    def matches(self, event_key: str) -> bool:
-        """Check if this rule matches the given event key."""
+    def matches(self, event_key: str, payload: LinearWebhookPayload | None = None) -> bool:
+        """
+        Check if this rule matches the given event and conditions.
+
+        Args:
+            event_key: Event key like "Issue.create"
+            payload: Optional payload for condition checking
+
+        Returns:
+            True if the rule matches
+        """
+        # First check event pattern
+        if not self._matches_event_pattern(event_key):
+            return False
+
+        # Then check conditions if payload is provided
+        if payload and self.conditions:
+            return all(condition.evaluate(payload) for condition in self.conditions)
+
+        return True
+
+    def _matches_event_pattern(self, event_key: str) -> bool:
+        """Check if this rule matches the given event key pattern."""
         if self.event_pattern == "*":
             return True
 
