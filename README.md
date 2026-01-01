@@ -4,7 +4,9 @@ A modular, production-ready framework for running Claude agents in automated wor
 
 ## Features
 
-- **Flexible Execution Modes**: Run once (cron), continuously (service), or on a schedule
+- **Flexible Execution Modes**: Run once (cron), continuously (service), on a schedule, or via webhooks
+- **Webhook Server**: Trigger agents from external events (Linear, GitHub, custom integrations)
+- **Conditional Routing**: Filter webhook events by field values (assignee, priority, state, etc.)
 - **Full Agent SDK Support**: All Claude Agent SDK features including tools, sub-agents, MCP servers
 - **AWS Bedrock Integration**: Use Claude via AWS Bedrock with full authentication support
 - **Comprehensive Configuration**: Configure via `.env`, YAML, or programmatically
@@ -105,6 +107,44 @@ caf cron "Daily backup verification" --schedule "0 2 * * *"
 caf cron -f prompts/hourly_check.md -s "0 * * * *"
 ```
 
+### Webhook Mode
+
+Trigger agents from external events like Linear issues, GitHub PRs, or custom webhooks:
+
+```bash
+# Start webhook server
+caf webhook
+
+# With custom port and routes
+caf webhook --port 8080 --routes webhook_routes.yaml
+
+# Generate example routes
+caf webhook --generate-routes
+```
+
+**Example: Auto-work on Linear issues assigned to "Claude"**
+
+```yaml
+# webhook_routes.yaml
+- event_pattern: Issue.update
+  conditions:
+    - field: assignee.name
+      operator: equals
+      value: Claude
+    - field: assignee
+      operator: changed
+  prompt_template: |
+    You've been assigned to: {title}
+
+    Use Linear MCP tools to:
+    1. Move to "In Progress"
+    2. Add acknowledgment comment
+    3. Work on the issue
+    4. Update with progress
+```
+
+See [WEBHOOKS.md](WEBHOOKS.md) for full webhook documentation and [examples/LINEAR_MCP_WEBHOOK_SETUP.md](examples/LINEAR_MCP_WEBHOOK_SETUP.md) for Linear integration guide.
+
 ## Configuration
 
 ### Environment Variables
@@ -123,6 +163,13 @@ CAF_AGENT__MAX_BUDGET_USD=10.0
 CAF_BEDROCK__ENABLED=true
 CAF_BEDROCK__REGION=us-east-1
 CAF_BEDROCK__PROFILE=default
+
+# Webhook Server
+CAF_WEBHOOK__ENABLED=true
+CAF_WEBHOOK__HOST=0.0.0.0
+CAF_WEBHOOK__PORT=8000
+CAF_WEBHOOK__LINEAR_WEBHOOK_SECRET=whsec_...
+CAF_WEBHOOK__ROUTES_FILE=./webhook_routes.yaml
 
 # Slack Notifications
 CAF_SLACK__ENABLED=true
@@ -417,6 +464,22 @@ caf run "Review all Python files in src/ for:
 Prioritize by severity."
 ```
 
+### Automated Linear Issue Workflow
+
+```bash
+# Start webhook server with Linear integration
+caf webhook --routes examples/webhook_routes_claude_assignee.yaml
+
+# Now when you assign a Linear issue to "Claude":
+# 1. Webhook triggers agent
+# 2. Agent analyzes the issue
+# 3. Agent uses Linear MCP to update issue
+# 4. Agent works on the task
+# 5. Agent posts progress updates
+```
+
+See [examples/LINEAR_MCP_WEBHOOK_SETUP.md](examples/LINEAR_MCP_WEBHOOK_SETUP.md) for complete setup guide.
+
 ## CLI Reference
 
 ```bash
@@ -438,6 +501,13 @@ caf service <prompt> [options]
 caf cron <prompt> --schedule <expr> [options]
   -s, --schedule       Cron expression
 
+# Webhook server
+caf webhook [options]
+  -h, --host           Host to bind to (default: 0.0.0.0)
+  -p, --port           Port to listen on (default: 8000)
+  -g, --generate-routes Generate example routes file
+  -r, --routes         Path to webhook routes YAML file
+
 # Configuration
 caf config [options]
   -g, --generate-env   Generate .env template
@@ -447,6 +517,9 @@ caf config [options]
 # Cost tracking
 caf costs [options]
   -r, --reset          Reset cost tracking
+
+# Authentication
+caf auth              Show authentication configuration
 
 # Version
 caf version
