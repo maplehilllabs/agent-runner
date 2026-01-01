@@ -1,0 +1,93 @@
+# Example webhook routing rules for Linear webhooks
+#
+# Each rule matches webhook events by pattern and triggers an agent with a custom prompt.
+#
+# Event patterns:
+#   - Exact match: "Issue.create" - matches only Issue creation events
+#   - Wildcard: "Issue.*" - matches all Issue events (create, update, remove)
+#   - Global: "*" - matches all events
+#
+# Available template variables:
+#   {title}       - Issue title (for Issue events)
+#   {description} - Issue description (for Issue events)
+#   {state}       - Issue state (for Issue events)
+#   {priority}    - Issue priority (for Issue events)
+#   {url}         - URL to the entity
+#   {action}      - Action type (create, update, remove)
+#   {type}        - Entity type (Issue, Comment, etc.)
+#   {actor_name}  - Name of the user who triggered the event
+#   {data}        - Full webhook payload data (as dict)
+
+# Handle new issue creation
+- event_pattern: Issue.create
+  description: Analyze new issues and provide initial triage
+  enabled: true
+  prompt_template: |
+    A new issue was created in Linear by {actor_name}:
+
+    Title: {title}
+    Description: {description}
+    Priority: {priority}
+    URL: {url}
+
+    Please analyze this issue and provide:
+    1. A brief summary of the issue
+    2. Potential areas of the codebase that might be affected
+    3. Any similar issues that may have been reported before
+    4. Recommended next steps for investigation
+
+# Handle high-priority issue updates
+- event_pattern: Issue.update
+  description: Monitor high-priority issue updates
+  enabled: true
+  prompt_template: |
+    An issue was updated in Linear:
+
+    Title: {title}
+    State: {state}
+    Priority: {priority}
+    URL: {url}
+
+    Please check if this requires immediate attention and notify the team if:
+    1. Priority is 1 (Urgent) or 2 (High)
+    2. State changed to "In Progress" or "In Review"
+    3. The issue has been blocked or needs clarification
+
+# Handle new comments
+- event_pattern: Comment.create
+  description: Process new comments on issues
+  enabled: true
+  prompt_template: |
+    A new comment was added by {actor_name}:
+
+    URL: {url}
+
+    Comment data: {data}
+
+    Please review this comment and check if it:
+    1. Contains a question that needs answering
+    2. Mentions any blockers or dependencies
+    3. Requests a code review or additional context
+
+# Handle project updates
+- event_pattern: Project.update
+  description: Track project milestone changes
+  enabled: false
+  prompt_template: |
+    A project was updated in Linear:
+
+    URL: {url}
+
+    Please analyze this project update and summarize any significant changes.
+
+# Catch-all handler (disabled by default)
+- event_pattern: "*"
+  description: Log all unhandled webhook events
+  enabled: false
+  prompt_template: |
+    Received a {type}.{action} event from Linear.
+
+    URL: {url}
+    Actor: {actor_name}
+
+    This is an informational log entry. No action required.

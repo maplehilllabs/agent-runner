@@ -490,6 +490,120 @@ def auth(
 
 
 @app.command()
+def webhook(
+    env_file: Path | None = typer.Option(
+        None,
+        "--env",
+        "-e",
+        help="Path to .env file",
+    ),
+    config_file: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to config.yaml file",
+    ),
+    host: str | None = typer.Option(
+        None,
+        "--host",
+        "-h",
+        help="Host to bind to (default: 0.0.0.0)",
+    ),
+    port: int | None = typer.Option(
+        None,
+        "--port",
+        "-p",
+        help="Port to listen on (default: 8000)",
+    ),
+    generate_routes: bool = typer.Option(
+        False,
+        "--generate-routes",
+        "-g",
+        help="Generate example webhook routes file",
+    ),
+    routes_file: Path | None = typer.Option(
+        None,
+        "--routes",
+        "-r",
+        help="Path to webhook routes YAML file",
+    ),
+) -> None:
+    """
+    Start webhook server to trigger agents from external events.
+
+    The webhook server receives HTTP POST requests from external services
+    (like Linear) and triggers Claude agents based on configured routing rules.
+
+    Examples:
+        caf webhook
+        caf webhook --host 0.0.0.0 --port 8080
+        caf webhook --generate-routes
+        caf webhook --routes routes.yaml
+    """
+    settings = load_config(env_file, config_file)
+
+    # Override routes file if provided
+    if routes_file:
+        settings.webhook.routes_file = routes_file
+
+    if generate_routes:
+        from claude_agent_framework.webhook.handlers import create_default_linear_routes
+
+        routes = create_default_linear_routes()
+        output_file = routes_file or Path("webhook_routes.yaml")
+
+        import yaml
+        routes_data = [route.model_dump() for route in routes]
+        output_file.write_text(yaml.dump(routes_data, default_flow_style=False))
+
+        console.print(f"[green]Generated webhook routes file: {output_file}[/green]")
+        console.print("\nEdit this file to customize webhook routing rules.")
+        console.print("Then start the webhook server with:")
+        console.print(f"  caf webhook --routes {output_file}")
+        return
+
+    # Validate webhook configuration
+    if not settings.webhook.enabled and not typer.confirm(
+        "Webhook server is not enabled in config. Start anyway?"
+    ):
+        console.print("[yellow]Webhook server start cancelled.[/yellow]")
+        return
+
+    if not settings.webhook.linear_webhook_secret:
+        console.print(
+            "[yellow]Warning: Linear webhook secret not configured. "
+            "Signature validation will be skipped.[/yellow]"
+        )
+        console.print("Set CAF_WEBHOOK__LINEAR_WEBHOOK_SECRET in your .env file.\n")
+
+    # Start the webhook server
+    from claude_agent_framework.webhook.server import WebhookServer
+
+    server = WebhookServer(settings)
+
+    # Display startup information
+    actual_host = host or settings.webhook.host
+    actual_port = port or settings.webhook.port
+
+    console.print(Panel(
+        f"[cyan]Webhook Server Starting[/cyan]\n\n"
+        f"Host: {actual_host}\n"
+        f"Port: {actual_port}\n"
+        f"Routes configured: {len(server.handler.route_rules)}\n\n"
+        f"Endpoints:\n"
+        f"  [green]POST[/green] http://{actual_host}:{actual_port}/webhooks/linear\n"
+        f"  [green]GET[/green]  http://{actual_host}:{actual_port}/health\n\n"
+        f"Press Ctrl+C to stop",
+        title="Claude Agent Framework - Webhook Server",
+    ))
+
+    try:
+        server.run(host=host, port=port)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Webhook server stopped.[/yellow]")
+
+
+@app.command()
 def version() -> None:
     """Show version information."""
     from claude_agent_framework import __version__

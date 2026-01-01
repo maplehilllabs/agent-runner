@@ -1,0 +1,124 @@
+# Webhook routes for "Claude" as assignee workflow
+#
+# This configuration triggers the agent when issues are assigned to a user named "Claude".
+# The agent will use the Linear MCP server (if configured) to interact with Linear.
+#
+# Prerequisites:
+# 1. Linear MCP server configured in your settings
+# 2. Linear webhook configured to send Issue.update events
+# 3. CAF_WEBHOOK__LINEAR_WEBHOOK_SECRET set in .env
+
+# Trigger when an issue is assigned to Claude
+- event_pattern: Issue.update
+  description: Auto-work on issues assigned to Claude
+  enabled: true
+  conditions:
+    # Only trigger if assignee name is "Claude"
+    - field: assignee.name
+      operator: equals
+      value: Claude
+    # Optional: Only trigger if assignee actually changed
+    - field: assignee
+      operator: changed
+  prompt_template: |
+    You have been assigned to work on a Linear issue:
+
+    **Title:** {title}
+    **Description:** {description}
+    **Priority:** {priority} (0=None, 1=Urgent, 2=High, 3=Medium, 4=Low)
+    **Current State:** {state}
+    **URL:** {url}
+
+    Please follow this workflow:
+
+    1. **Analyze the Requirements**
+       - Review the issue description carefully
+       - Identify what needs to be implemented/fixed
+       - Note any dependencies or blockers
+
+    2. **Update Issue Status**
+       - Use Linear MCP to move the issue to "In Progress"
+       - Add a comment: "Started working on this issue"
+
+    3. **Work on the Task**
+       - If this is a code change, make the necessary edits
+       - If this requires research, investigate and document findings
+       - If you need clarification, add a comment with questions
+
+    4. **Update Progress**
+       - Add comments to the issue as you make progress
+       - If you encounter blockers, update the issue state accordingly
+       - When complete, move to "Ready for Review" or "Done"
+
+    5. **Final Update**
+       - Add a summary comment with what was accomplished
+       - Link to any PRs, commits, or related work
+
+    You have access to Linear MCP tools to:
+    - Update issue state
+    - Add comments
+    - Change labels
+    - Modify priority
+    - Update description
+
+    Start by acknowledging the assignment and moving the issue to "In Progress".
+
+# Alternative: Only trigger for high-priority issues assigned to Claude
+- event_pattern: Issue.update
+  description: High-priority issues assigned to Claude
+  enabled: false  # Disable if you want to use the above rule instead
+  conditions:
+    - field: assignee.name
+      operator: equals
+      value: Claude
+    - field: priority
+      operator: in
+      value: [1, 2]  # Only Urgent or High priority
+  prompt_template: |
+    🚨 HIGH PRIORITY ISSUE ASSIGNED TO YOU 🚨
+
+    Title: {title}
+    Priority: {priority}
+    URL: {url}
+
+    This is a high-priority issue. Please:
+    1. Immediately acknowledge by adding a comment
+    2. Move to "In Progress"
+    3. Provide an ETA in a comment
+    4. Work on this with urgency
+
+# Trigger when Claude is unassigned from an issue
+- event_pattern: Issue.update
+  description: Handle when Claude is unassigned
+  enabled: false
+  conditions:
+    - field: assignee
+      operator: changed
+    # Note: To check if old assignee was Claude, you'd need to check updatedFrom
+    # This is a simpler version that triggers on any assignee change
+  prompt_template: |
+    An issue's assignee was changed: {title}
+
+    If you were previously assigned and are no longer assigned,
+    add a final comment summarizing any work you completed.
+
+# Trigger when state changes to "In Review" for Claude's issues
+- event_pattern: Issue.update
+  description: Notify when assigned issues move to review
+  enabled: false
+  conditions:
+    - field: assignee.name
+      operator: equals
+      value: Claude
+    - field: state.name
+      operator: equals
+      value: In Review
+    - field: state
+      operator: changed
+  prompt_template: |
+    Your issue moved to "In Review": {title}
+
+    Please:
+    1. Add a comment mentioning the reviewer
+    2. Provide context about what was implemented
+    3. Note any testing that was done
