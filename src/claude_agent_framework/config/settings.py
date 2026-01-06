@@ -285,6 +285,12 @@ class Settings(BaseSettings):
         description="Anthropic API key (can also use ANTHROPIC_API_KEY)"
     )
 
+    # OAuth Token (for Claude Code CLI / long-lived tokens from setup-token)
+    claude_code_oauth_token: str | None = Field(
+        default=None,
+        description="Claude Code OAuth token (long-lived, from 'claude setup-token')"
+    )
+
     # Agent Configuration
     agent: AgentConfig = Field(default_factory=AgentConfig)
 
@@ -412,8 +418,12 @@ class Settings(BaseSettings):
             "",
             "# API Configuration",
             "# -----------------",
-            "# Anthropic API key (required unless using Bedrock)",
+            "# Anthropic API key (required unless using Bedrock or OAuth token)",
             "ANTHROPIC_API_KEY=",
+            "",
+            "# Claude Code OAuth Token (alternative to API key)",
+            "# Generate a long-lived token (1 year) with: claude setup-token",
+            "# CAF_CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...",
             "",
             "# Agent Configuration",
             "# -------------------",
@@ -523,10 +533,17 @@ def load_settings(
         # Merge API key from environment if not in YAML
         if not settings.anthropic_api_key:
             settings.anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
+        # Merge OAuth token from environment if not in YAML
+        if not settings.claude_code_oauth_token:
+            settings.claude_code_oauth_token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
         return settings
 
     # Load settings from env
     settings = Settings(_env_file=env_file or ".env")
+
+    # Also check for CLAUDE_CODE_OAUTH_TOKEN without CAF_ prefix (SDK convention)
+    if not settings.claude_code_oauth_token:
+        settings.claude_code_oauth_token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
 
     return settings
 
