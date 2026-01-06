@@ -103,6 +103,10 @@ class AgentEngine:
         if self.settings.anthropic_api_key:
             os.environ["ANTHROPIC_API_KEY"] = self.settings.anthropic_api_key
 
+        # OAuth token (long-lived token from 'claude setup-token')
+        if self.settings.claude_code_oauth_token:
+            os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = self.settings.claude_code_oauth_token
+
         # Bedrock configuration
         if self.settings.bedrock.enabled:
             os.environ["CLAUDE_CODE_USE_BEDROCK"] = "1"

@@ -13,6 +13,7 @@ from claude_agent_framework.webhook.models import (
     LinearWebhookPayload,
     WebhookRouteRule,
 )
+from claude_agent_framework.notifications.slack import SlackNotifier
 
 if TYPE_CHECKING:
     from claude_agent_framework.config.settings import Settings
@@ -158,13 +159,18 @@ class WebhookHandler:
             if result.status.value == "success":
                 logger.info(
                     f"Agent completed successfully for {event_key}: "
-                    f"{result.token_usage.total_tokens} tokens, "
+                    f"{result.total_usage.total_tokens if result.total_usage else 'N/A'} tokens, "
                     f"${result.cost_usd:.4f}"
                 )
             else:
                 logger.error(
                     f"Agent failed for {event_key}: {result.error_message}"
                 )
+
+            # Send Slack notification
+            slack = SlackNotifier(self.settings.slack)
+            if slack.enabled:
+                await slack.notify_result(result, f"Webhook: {event_key}")
 
         except Exception as e:
             logger.error(f"Error running agent for {event_key}: {e}", exc_info=True)
