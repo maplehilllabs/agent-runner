@@ -160,11 +160,11 @@ class WebhookHandler:
                 logger.info(
                     f"Agent completed successfully for {event_key}: "
                     f"{result.total_usage.total_tokens if result.total_usage else 'N/A'} tokens, "
-                    f"${result.cost_usd:.4f}"
+                    f"${result.total_cost_usd:.4f}"
                 )
             else:
                 logger.error(
-                    f"Agent failed for {event_key}: {result.error_message}"
+                    f"Agent failed for {event_key}: {result.error}"
                 )
 
             # Send Slack notification

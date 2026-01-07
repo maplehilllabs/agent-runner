@@ -246,6 +246,7 @@ class WebhookRouteRule(BaseModel):
             "action": payload.action.value,
             "type": payload.type.value,
             "url": payload.url,
+            "id": payload.get_issue_id() or "",
             "title": payload.get_issue_title() or "",
             "description": payload.get_issue_description() or "",
             "state": payload.get_issue_state() or "",
